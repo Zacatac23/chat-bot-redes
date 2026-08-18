@@ -61,10 +61,10 @@ export class ChatbotHost {
       workspacePath
     ]);
 
-    // 2. Git MCP Server (Official Anthropic)
-    const gitClient = new StdioMcpClient('Git-Server', 'npx', [
+    // 2. Memory MCP Server (Official Anthropic)
+    const memoryClient = new StdioMcpClient('Memory-Server', 'npx', [
       '-y',
-      '@modelcontextprotocol/server-git'
+      '@modelcontextprotocol/server-memory'
     ]);
 
     // 3. Custom PharmaCare MCP Server (Local Industry Case)
@@ -76,7 +76,7 @@ export class ChatbotHost {
 
     const clientsToConnect = [
       { key: 'filesystem', client: fsClient },
-      { key: 'git', client: gitClient },
+      { key: 'memory', client: memoryClient },
       { key: 'pharmacare', client: pharmaClient }
     ];
 
@@ -230,7 +230,7 @@ export class ChatbotHost {
   private async callGeminiApi(userPrompt: string): Promise<string> {
     const candidateModels = process.env.GEMINI_MODEL
       ? [process.env.GEMINI_MODEL]
-      : ['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+      : ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
     this.geminiHistory.push({
       role: 'user',
@@ -257,6 +257,11 @@ export class ChatbotHost {
       // Try candidate models in sequence if 503 (High Demand) or 404 occurs
       for (const model of candidateModels) {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.geminiApiKey}`;
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
+
         const requestBody: any = { contents: this.geminiHistory };
         if (declarations.length > 0) {
           requestBody.tools = [{ functionDeclarations: declarations }];
@@ -272,7 +277,7 @@ export class ChatbotHost {
         try {
           res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(requestBody)
           });
 
@@ -508,7 +513,7 @@ export class ChatbotHost {
 
     if (promptLower.includes('git') || promptLower.includes('repo') || promptLower.includes('commit') || promptLower.includes('readme')) {
       const fsClient = this.mcpClients.get('filesystem');
-      const gitClient = this.mcpClients.get('git');
+      const memoryClient = this.mcpClients.get('memory') || this.mcpClients.get('git');
 
       let stepsResult = '1. Petición JSON-RPC enviada a Git & Filesystem MCP Servers.\n';
       if (fsClient) {
