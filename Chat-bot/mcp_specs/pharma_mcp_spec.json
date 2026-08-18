@@ -1,0 +1,45 @@
+{
+  "serverInfo": {
+    "name": "pharmacare-mcp-server",
+    "version": "1.0.0",
+    "description": "Custom Local MCP Server for Pharmacy Inventory Search, Stock Checking, and Order Creation.",
+    "protocol": "JSON-RPC 2.0 over stdio"
+  },
+  "tools": [
+    {
+      "name": "search_medications",
+      "description": "Searches for medications based on name, symptom, or category.",
+      "parameters": {
+        "query": "String (required) - Name of medication or patient symptom (e.g. fever, headache, acid reflux).",
+        "category": "String (optional) - Medical category filter."
+      },
+      "returns": "JSON array of matching medications with price, stock, and prescription requirements."
+    },
+    {
+      "name": "check_inventory",
+      "description": "Checks current stock level and price for a given medication ID.",
+      "parameters": {
+        "medication_id": "String (required) - Unique ID of the medication (e.g. MED-001)."
+      },
+      "returns": "Stock count, unit price, availability flag, and prescription requirement."
+    },
+    {
+      "name": "create_order",
+      "description": "Creates a home delivery purchase order for one or more medications.",
+      "parameters": {
+        "patient_name": "String (required) - Customer full name.",
+        "address": "String (required) - Delivery address.",
+        "items": "Array of objects [{ medication_id: string, quantity: number }] (required)."
+      },
+      "returns": "Order summary including generated order ID, total price, and status."
+    },
+    {
+      "name": "get_order_status",
+      "description": "Retrieves the status of an existing purchase order.",
+      "parameters": {
+        "order_id": "String (required) - Unique order ID (e.g. ORD-9821)."
+      },
+      "returns": "Complete order status and item list."
+    }
+  ]
+}

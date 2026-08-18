@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Host & Inspector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="app-title">MCP Host</span>
+        <span class="app-divider">/</span>
+        <span class="app-subtitle">JSON-RPC 2.0 stdio</span>
+      </div>
+
+      <div class="header-right">
+        <div class="status-indicator" id="serverBadges">
+          <span class="status-dot"></span>
+          <span class="status-label">Conectando...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Preset Actions Toolbar -->
+    <nav class="actions-nav">
+      <span class="actions-label">Demos:</span>
+      <div class="actions-list">
+        <button class="btn btn-action" onclick="sendPreset('Tengo dolor de cabeza y fiebre. ¿Qué medicamentos me recomiendas y cuál es el precio y stock disponible?')">
+          Buscar Medicamentos
+        </button>
+        <button class="btn btn-action" onclick="sendPreset('Crea una orden de compra para 2 cajas de Paracetamol 500mg a nombre de Juan Pérez, Dirección: Av. Las Américas 12-34.')">
+          Comprar Medicamento
+        </button>
+        <button class="btn btn-action" onclick="sendPreset('Crear un archivo test-readme-mcp.md con el texto # Proyecto MCP y hacer commit en git.')">
+          Git & Filesystem
+        </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Tabs Switcher -->
+    <div class="mobile-tabs">
+      <button class="btn btn-tab active" id="tabChatBtn" onclick="switchMobileTab('chat')">Chatbot</button>
+      <button class="btn btn-tab" id="tabInspectorBtn" onclick="switchMobileTab('inspector')">Inspector (<span id="logCounter">0</span>)</button>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <main class="main-grid">
+      
+      <!-- Chat Panel -->
+      <section class="panel-box chat-panel" id="chatPanel">
+        <div class="panel-head">
+          <span class="panel-name">Chatbot</span>
+          <button class="btn btn-text" onclick="clearChat()">Limpiar chat</button>
+        </div>
+
+        <div class="chat-flow" id="chatHistory">
+          <div class="chat-row assistant-row welcome-row">
+            <div class="msg-content">
+              <p class="welcome-title">Chatbot Anfitrión MCP</p>
+              <p class="welcome-text">Comunicación directa con servidores MCP mediante JSON-RPC 2.0 sobre stdio.</p>
+              
+              <div class="suggestion-group">
+                <button class="btn btn-chip" onclick="sendPreset('¿Cuáles son los síntomas que puede tratar el Paracetamol?')">
+                  ¿Para qué sirve el Paracetamol?
+                </button>
+                <button class="btn btn-chip" onclick="sendPreset('Verifica el inventario del medicamento MED-001')">
+                  Consultar Stock de MED-001
+                </button>
+                <button class="btn btn-chip" onclick="sendPreset('Crea un archivo README.md en el proyecto y verifica el estado de git')">
+                  Crear README y verificar Git
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-box">
+          <textarea id="chatInput" placeholder="Escribe un mensaje..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+          <button class="btn btn-primary" id="btnSend" onclick="sendMessage()">Enviar ➔</button>
+        </div>
+      </section>
+
+      <!-- Inspector Panel -->
+      <section class="panel-box inspector-panel" id="inspectorPanel">
+        
+        <!-- Inspector Navigation Bar -->
+        <nav class="inspector-navbar">
+          <div class="nav-tabs">
+            <button class="btn btn-tab active" data-filter="all" onclick="setInspectorFilter('all')">Todos</button>
+            <button class="btn btn-tab" data-filter="request" onclick="setInspectorFilter('request')">Requests ➔</button>
+            <button class="btn btn-tab" data-filter="response" onclick="setInspectorFilter('response')">Responses ⬅</button>
+            <button class="btn btn-tab" data-filter="notification" onclick="setInspectorFilter('notification')">Notifications</button>
+          </div>
+
+          <div class="nav-actions">
+            <button class="btn btn-text" onclick="toggleExpandAll()" id="btnExpandAll">Expandir todo</button>
+            <button class="btn btn-text" onclick="clearLogs()">Limpiar</button>
+          </div>
+        </nav>
+
+        <!-- Search & Options Toolbar -->
+        <div class="inspector-subhead">
+          <div class="search-field">
+            <input type="text" id="searchInput" placeholder="Filtrar mensajes..." oninput="filterLogs()">
+          </div>
+          <label class="filter-check">
+            <input type="checkbox" id="hideSystemCheckbox" onchange="filterLogs()" checked>
+            <span>Solo JSON-RPC</span>
+          </label>
+        </div>
+
+        <!-- Fixed Height Scrollable Log Viewport -->
+        <div class="log-stream" id="inspectorLogs">
+          <!-- Dynamic JSON-RPC log cards -->
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
