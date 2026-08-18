@@ -1,4 +1,3 @@
-import { Anthropic } from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import { StdioMcpClient } from '../protocol/mcp-client-stdio.js';
 import { Logger } from './logger.js';
@@ -10,7 +9,6 @@ export interface ChatMessage {
 }
 
 export class ChatbotHost {
-  private anthropic: Anthropic | null = null;
   private geminiApiKey: string | null = null;
   private mcpClients: Map<string, StdioMcpClient> = new Map();
   private conversationHistory: ChatMessage[] = [];
@@ -24,17 +22,6 @@ export class ChatbotHost {
 
   public reloadApiKeys(): void {
     dotenv.config({ override: true });
-
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (anthropicKey && !anthropicKey.startsWith('YOUR_') && anthropicKey.trim() !== '') {
-      try {
-        this.anthropic = new Anthropic({ apiKey: anthropicKey.trim() });
-      } catch {
-        this.anthropic = null;
-      }
-    } else {
-      this.anthropic = null;
-    }
 
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey && !geminiKey.startsWith('YOUR_') && geminiKey.trim() !== '') {
@@ -67,7 +54,14 @@ export class ChatbotHost {
       '@modelcontextprotocol/server-memory'
     ]);
 
-    // 3. Custom PharmaCare MCP Server (Local Industry Case)
+    // 3. Git MCP Server (Local Git Operations)
+    const gitClient = new StdioMcpClient('Git-Server', 'npx', [
+      '-y',
+      'tsx',
+      path.join(process.cwd(), 'src', 'servers', 'custom-git-server.ts')
+    ]);
+
+    // 4. Custom PharmaCare MCP Server (Local Industry Case)
     const pharmaClient = new StdioMcpClient('PharmaCare-Server', 'npx', [
       '-y',
       'tsx',
@@ -77,6 +71,7 @@ export class ChatbotHost {
     const clientsToConnect = [
       { key: 'filesystem', client: fsClient },
       { key: 'memory', client: memoryClient },
+      { key: 'git', client: gitClient },
       { key: 'pharmacare', client: pharmaClient }
     ];
 
@@ -115,21 +110,6 @@ export class ChatbotHost {
       });
     }
     return list;
-  }
-
-  public getAllToolsForAnthropic(): any[] {
-    const anthropicTools: any[] = [];
-    for (const [_, client] of this.mcpClients.entries()) {
-      const tools = client.getTools();
-      for (const t of tools) {
-        anthropicTools.push({
-          name: t.name,
-          description: t.description || `Tool from ${client.name}`,
-          input_schema: t.inputSchema || { type: 'object', properties: {} }
-        });
-      }
-    }
-    return anthropicTools;
   }
 
   public getGeminiFunctionDeclarations(): any[] {
@@ -190,7 +170,6 @@ export class ChatbotHost {
   public async sendMessage(userPrompt: string): Promise<string> {
     this.reloadApiKeys();
 
-    // Priority 1: Google Gemini API (if GEMINI_API_KEY is configured)
     if (this.geminiApiKey) {
       try {
         return await this.callGeminiApi(userPrompt);
@@ -205,22 +184,6 @@ export class ChatbotHost {
       }
     }
 
-    // Priority 2: Anthropic API (if ANTHROPIC_API_KEY is configured and active)
-    if (this.anthropic && process.env.USE_SIMULATION !== 'true') {
-      try {
-        return await this.callAnthropicApi(userPrompt);
-      } catch (err: any) {
-        this.logger.log({
-          serverName: 'HOST',
-          type: 'system',
-          direction: 'internal',
-          payload: `Anthropic API Notice: ${err.message}. Automatically falling back to MCP Smart Simulation Engine...`
-        });
-        return await this.callSmartSimulationEngine(userPrompt, true);
-      }
-    }
-
-    // Priority 3: Local Smart Simulation Engine
     return await this.callSmartSimulationEngine(userPrompt, false);
   }
 
@@ -365,91 +328,6 @@ export class ChatbotHost {
     return finalAnswer;
   }
 
-  private async callAnthropicApi(userPrompt: string): Promise<string> {
-    const anthropicTools = this.getAllToolsForAnthropic();
-    let finalAssistantReply = '';
-    let continueToolLoop = true;
-    let turns = 0;
-    const maxTurns = 10;
-
-    this.conversationHistory.push({
-      role: 'user',
-      content: userPrompt
-    });
-
-    while (continueToolLoop && turns < maxTurns) {
-      turns++;
-
-      this.logger.log({
-        serverName: 'HOST',
-        type: 'system',
-        direction: 'internal',
-        payload: `Calling Anthropic Claude API (Turn ${turns}, Tools available: ${anthropicTools.length})...`
-      });
-
-      const response = await this.anthropic!.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        messages: this.conversationHistory as any,
-        tools: anthropicTools.length > 0 ? (anthropicTools as any) : undefined
-      });
-
-      this.conversationHistory.push({
-        role: 'assistant',
-        content: response.content
-      });
-
-      if (response.stop_reason === 'tool_use') {
-        const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
-        const toolResults: any[] = [];
-
-        for (const block of toolUseBlocks) {
-          if (block.type === 'tool_use') {
-            const { id: toolUseId, name: toolName, input: toolArgs } = block;
-
-            this.logger.log({
-              serverName: 'HOST',
-              type: 'system',
-              direction: 'internal',
-              payload: `Claude requested Tool Execution: [${toolName}] with args: ${JSON.stringify(toolArgs)}`
-            });
-
-            const targetClient = this.findClientForTool(toolName);
-            let toolResultContent = '';
-
-            if (targetClient) {
-              try {
-                const mcpResult = await targetClient.callTool(toolName, toolArgs as Record<string, any>);
-                toolResultContent = JSON.stringify(mcpResult);
-              } catch (toolErr: any) {
-                toolResultContent = JSON.stringify({ error: toolErr.message });
-              }
-            } else {
-              toolResultContent = JSON.stringify({ error: `Tool ${toolName} not registered in any connected MCP server` });
-            }
-
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: toolUseId,
-              content: toolResultContent
-            });
-          }
-        }
-
-        this.conversationHistory.push({
-          role: 'user',
-          content: toolResults
-        });
-      } else {
-        continueToolLoop = false;
-        const textBlocks = response.content.filter((b) => b.type === 'text');
-        finalAssistantReply = textBlocks.map((b: any) => b.text).join('\n');
-      }
-    }
-
-    return finalAssistantReply || 'Respuesta completada.';
-  }
-
   private async callSmartSimulationEngine(userPrompt: string, wasFallback: boolean): Promise<string> {
     const promptLower = userPrompt.toLowerCase();
     let replyPrefix = wasFallback
@@ -513,7 +391,6 @@ export class ChatbotHost {
 
     if (promptLower.includes('git') || promptLower.includes('repo') || promptLower.includes('commit') || promptLower.includes('readme')) {
       const fsClient = this.mcpClients.get('filesystem');
-      const memoryClient = this.mcpClients.get('memory') || this.mcpClients.get('git');
 
       let stepsResult = '1. Petición JSON-RPC enviada a Git & Filesystem MCP Servers.\n';
       if (fsClient) {
