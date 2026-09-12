@@ -123,6 +123,17 @@ function handleRequest(req: any) {
                   max_count: { type: 'number', description: 'Número máximo de commits a mostrar (opcional, por defecto 5)' }
                 }
               }
+            },
+            {
+              name: 'git_push',
+              description: 'Envía los commits del repositorio local al repositorio remoto (ej. origin main).',
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  remote: { type: 'string', description: 'Nombre del remoto (opcional, por defecto "origin")' },
+                  branch: { type: 'string', description: 'Nombre de la rama (opcional, por defecto "main")' }
+                }
+              }
             }
           ]
         }
@@ -211,6 +222,20 @@ function handleToolCall(id: number | string, params: any) {
           id,
           result: {
             content: [{ type: 'text', text: JSON.stringify({ commits: res.output, success: res.success }, null, 2) }]
+          }
+        });
+        break;
+      }
+
+      case 'git_push': {
+        const remote = args?.remote || 'origin';
+        const branch = args?.branch || 'main';
+        const res = runGitCmd(`git push ${remote} ${branch}`);
+        sendResponse({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            content: [{ type: 'text', text: JSON.stringify({ message: `git push ${remote} ${branch} ejecutado`, output: res.output, success: res.success }, null, 2) }]
           }
         });
         break;

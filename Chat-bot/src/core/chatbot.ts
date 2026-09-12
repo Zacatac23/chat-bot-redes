@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { StdioMcpClient } from '../protocol/mcp-client-stdio.js';
+import { HttpMcpClient, IMcpClient } from '../protocol/mcp-client-http.js';
 import { Logger } from './logger.js';
 import path from 'path';
 
@@ -10,7 +11,7 @@ export interface ChatMessage {
 
 export class ChatbotHost {
   private geminiApiKey: string | null = null;
-  private mcpClients: Map<string, StdioMcpClient> = new Map();
+  private mcpClients: Map<string, IMcpClient> = new Map();
   private conversationHistory: ChatMessage[] = [];
   private geminiHistory: any[] = [];
   private logger = Logger.getInstance();
@@ -61,12 +62,31 @@ export class ChatbotHost {
       path.join(process.cwd(), 'src', 'servers', 'custom-git-server.ts')
     ]);
 
-    // 4. Custom PharmaCare MCP Server (Local Industry Case)
-    const pharmaClient = new StdioMcpClient('PharmaCare-Server', 'npx', [
-      '-y',
-      'tsx',
-      path.join(process.cwd(), 'src', 'servers', 'custom-pharma-server.ts')
-    ]);
+    // 4. PharmaCare MCP Server (Remote HTTP or Local Stdio depending on env)
+    const remotePharmaUrl = process.env.REMOTE_PHARMA_MCP_URL?.trim();
+    let pharmaClient: IMcpClient;
+
+    if (remotePharmaUrl) {
+      this.logger.log({
+        serverName: 'HOST',
+        type: 'system',
+        direction: 'internal',
+        payload: `Configuring REMOTE PharmaCare Server at: ${remotePharmaUrl}`
+      });
+      pharmaClient = new HttpMcpClient('PharmaCare-Server (Remote)', remotePharmaUrl);
+    } else {
+      this.logger.log({
+        serverName: 'HOST',
+        type: 'system',
+        direction: 'internal',
+        payload: 'Configuring LOCAL PharmaCare Server over stdio'
+      });
+      pharmaClient = new StdioMcpClient('PharmaCare-Server (Local)', 'npx', [
+        '-y',
+        'tsx',
+        path.join(process.cwd(), 'src', 'servers', 'custom-pharma-server.ts')
+      ]);
+    }
 
     const clientsToConnect = [
       { key: 'filesystem', client: fsClient },
@@ -157,7 +177,7 @@ export class ChatbotHost {
     return declarations;
   }
 
-  private findClientForTool(toolName: string): StdioMcpClient | null {
+  private findClientForTool(toolName: string): IMcpClient | null {
     for (const [_, client] of this.mcpClients.entries()) {
       const tools = client.getTools();
       if (tools.some((t) => t.name === toolName)) {

@@ -8,6 +8,7 @@
     "dev": "tsx src/web/server.ts",
     "cli": "tsx src/cli.ts",
     "pharma-server": "tsx src/servers/custom-pharma-server.ts",
+    "pharma-remote": "tsx src/servers/remote-pharma-server.ts",
     "build": "tsc"
   },
   "keywords": [
