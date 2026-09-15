@@ -166,6 +166,9 @@ To capture and analyze MCP network packets between the host and the remote serve
 
 A full theoretical breakdown by OSI/TCP-IP layers (Data Link, Network, Transport, and Application) is documented in [`docs/REPORTE_WIRESHARK_Y_ESPECIFICACION.md`](./docs/REPORTE_WIRESHARK_Y_ESPECIFICACION.md).
 
+### Live Cloud Capture Evidence (Render + Wireshark)
+![Wireshark Live Capture: TCP Handshake and TLS SNI to Cloud Server](docs/images/wireshark_handshake_sni.png)
+
 ---
 
 ## 📁 Project Structure
@@ -179,9 +182,14 @@ Chat-bot/
 ├── mcp_specs/
 │   └── pharma_mcp_spec.json        # Formal JSON Schema specification of PharmaCare tools
 ├── docs/
-│   └── REPORTE_WIRESHARK_Y_ESPECIFICACION.md  # Technical report and Wireshark analysis
+│   ├── REPORTE_WIRESHARK_Y_ESPECIFICACION.md  # Technical report and Wireshark analysis
+│   └── images/                     # Wireshark traffic packet captures
+│       ├── wireshark_handshake_sni.png
+│       ├── wireshark_application_data.png
+│       └── wireshark_tls_stream.png
 ├── scratch/
-│   └── test-remote-mcp.ts          # Automated end-to-end remote MCP test suite
+│   ├── test-remote-mcp.ts          # Automated end-to-end remote MCP test suite
+│   └── test-cloud-mcp.ts           # Live cloud verification script
 └── src/
     ├── cli.ts                      # Interactive Terminal CLI with fast commands
     ├── core/
