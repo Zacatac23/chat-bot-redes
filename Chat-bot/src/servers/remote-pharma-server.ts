@@ -440,7 +440,7 @@ app.post('/mcp', (req: Request, res: Response) => {
   }
 });
 
-const PORT = process.env.REMOTE_PORT || 8080;
+const PORT = process.env.PORT || process.env.REMOTE_PORT || 8080;
 
 app.listen(PORT, () => {
   console.log('====================================================');

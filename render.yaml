@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pharma-mcp-server
+    runtime: node
+    rootDir: Chat-bot
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run pharma-remote
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
