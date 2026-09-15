@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 import { HttpMcpClient } from '../src/protocol/mcp-client-http.js';
 
 async function testRemoteMcp() {

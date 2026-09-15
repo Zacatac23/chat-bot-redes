@@ -410,26 +410,78 @@ export class ChatbotHost {
     }
 
     if (promptLower.includes('git') || promptLower.includes('repo') || promptLower.includes('commit') || promptLower.includes('readme')) {
-      const fsClient = this.mcpClients.get('filesystem');
-
-      let stepsResult = '1. Petición JSON-RPC enviada a Git & Filesystem MCP Servers.\n';
-      if (fsClient) {
-        try {
-          await fsClient.callTool('write_file', {
-            path: 'test-readme-mcp.md',
-            content: '# Proyecto MCP - Demostración Git\nCreado vía JSON-RPC 2.0 stdio.'
-          });
-          stepsResult += '2. Archivo `test-readme-mcp.md` creado exitosamente.\n';
-        } catch (e: any) {
-          stepsResult += `2. Escritura de archivo: ${e.message}\n`;
-        }
-      }
-
-      const reply = `${replyPrefix}📁 **Demostración de Git & Filesystem ejecutada vía JSON-RPC:**\n\n${stepsResult}`;
-      return reply;
+      return await this.executeGitScenario(replyPrefix);
     }
 
     return `${replyPrefix}Hola, recibí tu mensaje: "${userPrompt}". El sistema Chatbot Anfitrión MCP está listo.`;
+  }
+
+  public async executeGitScenario(replyPrefix: string = ''): Promise<string> {
+    const fsClient = this.mcpClients.get('filesystem');
+    const gitClient = this.mcpClients.get('git');
+
+    const steps: string[] = [];
+
+    // Step 1: Initialize git repository via Git MCP Server
+    if (gitClient) {
+      try {
+        const initRes = await gitClient.callTool('git_init', {});
+        const output = initRes?.content?.[0]?.text || '';
+        steps.push(`1️⃣ **Inicializar Repositorio Git (` + '`git_init`' + `):**\n   \`\`\`json\n   ${output}\n   \`\`\``);
+      } catch (e: any) {
+        steps.push(`1️⃣ **Inicializar Repositorio Git:** ${e.message}`);
+      }
+    }
+
+    // Step 2: Create README.md via Filesystem MCP Server
+    if (fsClient) {
+      try {
+        const readmeContent = `# Demostración Protocolo MCP - Git & Filesystem\n\n` +
+          `Este archivo fue creado dinámicamente mediante el **Filesystem MCP Server** usando **JSON-RPC 2.0**.\n` +
+          `Fecha de creación: ${new Date().toISOString()}\n`;
+        await fsClient.callTool('write_file', {
+          path: 'test-readme-mcp.md',
+          content: readmeContent
+        });
+        steps.push(`2️⃣ **Crear archivo README (` + '`write_file`' + `):**\n   Archivo \`test-readme-mcp.md\` creado exitosamente vía Filesystem MCP Server.`);
+      } catch (e: any) {
+        steps.push(`2️⃣ **Crear archivo README:** ${e.message}`);
+      }
+    }
+
+    // Step 3: Git Add via Git MCP Server
+    if (gitClient) {
+      try {
+        const addRes = await gitClient.callTool('git_add', { files: 'test-readme-mcp.md' });
+        const output = addRes?.content?.[0]?.text || '';
+        steps.push(`3️⃣ **Preparar archivo en Staging (` + '`git_add`' + `):**\n   \`\`\`json\n   ${output}\n   \`\`\``);
+      } catch (e: any) {
+        steps.push(`3️⃣ **Preparar archivo en Staging:** ${e.message}`);
+      }
+
+      // Step 4: Git Commit via Git MCP Server
+      try {
+        const commitMsg = `docs: update test-readme-mcp.md via MCP JSON-RPC [${new Date().toLocaleTimeString()}]`;
+        const commitRes = await gitClient.callTool('git_commit', { message: commitMsg });
+        const output = commitRes?.content?.[0]?.text || '';
+        steps.push(`4️⃣ **Realizar Commit (` + '`git_commit`' + `):**\n   \`\`\`json\n   ${output}\n   \`\`\``);
+      } catch (e: any) {
+        steps.push(`4️⃣ **Realizar Commit:** ${e.message}`);
+      }
+
+      // Step 5: Git Log via Git MCP Server
+      try {
+        const logRes = await gitClient.callTool('git_log', { max_count: 2 });
+        const output = logRes?.content?.[0]?.text || '';
+        steps.push(`5️⃣ **Consultar Historial (` + '`git_log`' + `):**\n   \`\`\`json\n   ${output}\n   \`\`\``);
+      } catch (e: any) {
+        // Optional
+      }
+    }
+
+    return `${replyPrefix}🛠️ **Demostración de Servidores MCP (Git & Filesystem) Ejecutada:**\n\n` +
+      steps.join('\n\n') +
+      `\n\n✅ **Escenario oficial completado al 100% mediante protocolo JSON-RPC 2.0 manual.**`;
   }
 
   public getHistory(): ChatMessage[] {

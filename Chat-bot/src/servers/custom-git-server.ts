@@ -7,6 +7,7 @@
 import readline from 'readline';
 import { execSync } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 function sendResponse(response: any) {
   const json = JSON.stringify(response);
@@ -16,6 +17,9 @@ function sendResponse(response: any) {
 function runGitCmd(cmd: string, cwd?: string): { success: boolean; output: string } {
   try {
     const targetDir = cwd || process.cwd();
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
     const output = execSync(cmd, { cwd: targetDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
     return { success: true, output: output.trim() || 'Comando ejecutado exitosamente sin salida de texto.' };
   } catch (err: any) {
@@ -203,7 +207,7 @@ function handleToolCall(id: number | string, params: any) {
 
       case 'git_commit': {
         const msg = (args?.message || 'Update repository').replace(/"/g, '\\"');
-        const res = runGitCmd(`git commit -m "${msg}"`);
+        const res = runGitCmd(`git -c user.name="MCP Bot" -c user.email="mcp@bot.local" commit -m "${msg}"`);
         sendResponse({
           jsonrpc: '2.0',
           id,
