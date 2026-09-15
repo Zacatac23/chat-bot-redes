@@ -330,6 +330,22 @@ function executeTool(name: string, args: any): any {
   }
 }
 
+// Root endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    status: 'online',
+    message: 'PharmaCare Remote MCP Server is running',
+    version: '1.0.0',
+    protocol: 'JSON-RPC 2.0 over HTTP',
+    endpoints: {
+      post_mcp: '/mcp',
+      get_mcp: '/mcp',
+      health: '/health'
+    },
+    tools: PHARMA_TOOLS.map((t) => t.name)
+  });
+});
+
 // Health check endpoint for cloud hosting
 app.get('/health', (req: Request, res: Response) => {
   res.json({
