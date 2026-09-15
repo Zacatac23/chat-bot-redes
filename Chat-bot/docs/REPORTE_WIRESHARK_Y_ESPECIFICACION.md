@@ -67,14 +67,47 @@ A continuación se detalla la clasificación de cada mensaje capturado en el flu
 | **Sincronización** (Handshake Notif) | `notifications/initialized` | *Ninguno* | Cliente ➔ Servidor | Notificación sin ID que finaliza el apretón de manos inicial. |
 | **Solicitud (Petición)** | `tools/list` | `2` | Cliente ➔ Servidor | Petición para obtener el catálogo de herramientas disponibles. |
 | **Respuesta** | Respuesta a `tools/list` | `2` | Servidor ➔ Cliente | Lista en formato JSON de las 4 herramientas con sus esquemas JSON Schema. |
-| **Solicitud (Petición)** | `tools/call` (`search_medications`) | `3` | Cliente ➔ Servidor | Invocación de herramienta con parámetros (`query: "fiebre"`). |
-| **Respuesta** | Respuesta a `tools/call` | `3` | Servidor ➔ Cliente | Resultado con lista de medicamentos compatibles y precio. |
+| **Solicitud (Petición)** | `tools/call` (`search_medications`) | `3` | Cliente ➔ Servidor | Invocación de herramienta con parámetros (`query: "fiebre"` o `"dolor de cabeza"`). |
+| **Respuesta** | Respuesta a `tools/call` | `3` | Servidor ➔ Cliente | Resultado con lista de medicamentos compatibles (`Paracetamol 500mg`) y precio. |
 | **Solicitud (Petición)** | `tools/call` (`create_order`) | `4` | Cliente ➔ Servidor | Invocación de creación de orden con datos de paciente y productos. |
 | **Respuesta** | Respuesta a `tools/call` | `4` | Servidor ➔ Cliente | Confirmación de la orden creada con ID y total. |
 
 ---
 
-### 2.2 Explicación del Tráfico por Capas del Modelo OSI / TCP-IP (Punto 9)
+### 2.2 Evidencia Gráfica Capturada con Wireshark
+
+A continuación se presentan las capturas reales obtenidas durante la ejecución de la prueba contra el servidor remoto desplegado en Render (`https://chat-bot-redes.onrender.com/mcp`):
+
+#### Captura 1: Three-Way Handshake TCP y Negociación TLS con SNI en la Nube
+![Captura de Wireshark: TCP Three-Way Handshake y Client Hello SNI](images/wireshark_handshake_sni.png)
+
+**Análisis de los paquetes clave observados:**
+* **Paquete 164:** `192.168.0.15 ➔ 216.24.57.15 [SYN]` (Puerto efímero cliente `60774` hacia puerto servidor `443`). Solicita la apertura de conexión TCP con número de secuencia inicial (`Seq=0`).
+* **Paquete 167:** `216.24.57.15 ➔ 192.168.0.15 [SYN, ACK]` (Desde Render hacia el cliente). Acepta la conexión e incrementa el acuse de recibo (`Ack=1`).
+* **Paquete 168:** `192.168.0.15 ➔ 216.24.57.15 [ACK]`. El cliente confirma. **Se completa exitosamente el Three-Way Handshake de la Capa de Transporte.**
+* **Paquete 169:** `TLSv1.3 Client Hello (SNI=chat-bot-redes.onrender.com)`. **Mensaje de Sincronización Inicial**: El cliente solicita establecer la sesión segura hacia el host remoto específico `chat-bot-redes.onrender.com`.
+* **Paquete 173:** `TLSv1.3 Server Hello, Change Cipher Spec`. Render responde acordando la suite criptográfica segura TLSv1.3.
+* **Paquetes 174 y 175:** `TLSv1.3 Application Data`. **Mensajes de Solicitud y Respuesta MCP**: Intercambio de las tramas cifradas JSON-RPC 2.0 conteniendo `initialize` y la respuesta del catálogo de herramientas (`tools/list`).
+
+---
+
+#### Captura 2: Flujo de Carga Útil (Application Data) y Cierre de Conexión
+![Captura de Wireshark: Flujo de Application Data y Banderas TCP](images/wireshark_application_data.png)
+
+**Análisis de los paquetes observados:**
+* **Paquetes 198 a 201:** Flujo bidireccional continuo de segmentos TCP con acuses de recibo (`ACK`) y números de ventana adaptativos (`Win=65280`) garantizando el control de flujo entre el host y el servidor en la nube.
+* **Paquetes 208 a 227:** Intercambio de banderas `[FIN, ACK]` y `[RST]` de la capa de transporte al finalizar la ejecución del script de prueba y desconectar la sesión MCP de forma limpia.
+
+---
+
+#### Captura 3: Inspección de Paquetes Application Data TLSv1.3
+![Captura de Wireshark: Paquetes TLSv1.3 Application Data](images/wireshark_tls_stream.png)
+
+**Análisis de los paquetes observados:**
+* **Paquetes 2608 a 2619:** Se evidencian las tramas de datos de aplicación (`Application Data`) de longitud variable (ej. 4499 bytes, 138 bytes, 226 bytes) correspondientes a las cargas útiles de las respuestas con los listados de medicamentos en formato JSON.
+
+
+### 2.3 Explicación del Tráfico por Capas del Modelo OSI / TCP-IP (Punto 9)
 
 #### 1. Capa de Enlace de Datos (Data Link Layer)
 * **Unidad de Datos:** Trama Ethernet (Ethernet II Frame).
